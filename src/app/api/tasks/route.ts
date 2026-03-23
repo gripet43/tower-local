@@ -26,11 +26,15 @@ export async function GET(req: NextRequest) {
     where.taskTags = { some: { tagId: sp.get('tagId') } }
   }
 
-  return NextResponse.json(await prisma.task.findMany({
-    where,
-    include: listInclude,
-    orderBy: [{ sectionId: 'asc' }, { sortOrder: 'asc' }],
-  }))
+  try {
+    return NextResponse.json(await prisma.task.findMany({
+      where,
+      include: listInclude,
+      orderBy: [{ sectionId: 'asc' }, { sortOrder: 'asc' }],
+    }))
+  } catch {
+    return NextResponse.json([])
+  }
 }
 
 // POST /api/tasks - create task
