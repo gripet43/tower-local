@@ -1,30 +1,32 @@
-import { PrismaClient } from '@prisma/client'
+'use client'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
-export default async function Home() {
-  try {
-    const prisma = new PrismaClient()
-    const first = await prisma.project.findFirst({ orderBy: { createdAt: 'asc' } })
-    if (first) {
-      const { redirect } = await import('next/navigation')
-      redirect(`/projects/${first.id}`)
-    }
-    return (
-      <div className="flex items-center justify-center min-h-screen" style={{ background: '#f4f7f0' }}>
-        <div className="text-center">
-          <h1 className="text-[20px] font-bold text-gray-800 mb-3">Tower</h1>
-          <p className="text-[13px] text-gray-400 mb-4">暂无项目</p>
-          <p className="text-[11px] text-gray-300">运行 <code className="bg-gray-100 px-1.5 py-0.5 rounded">npx tsx prisma/seed.ts</code> 添加种子数据</p>
-        </div>
+export default function Home() {
+  const router = useRouter()
+  return (
+    <div className="flex items-center justify-center min-h-screen" style={{ background: '#f4f7f0' }}>
+      <div className="text-center bg-white rounded-xl shadow-sm border border-gray-200/50 px-8 py-10">
+        <h1 className="text-[22px] font-bold text-gray-800 mb-2">Tower</h1>
+        <p className="text-[13px] text-gray-400 mb-5">暂无项目数据</p>
+        <SeedButton onDone={() => router.refresh()} />
       </div>
-    )
-  } catch {
-    return (
-      <div className="flex items-center justify-center min-h-screen" style={{ background: '#f4f7f0' }}>
-        <div className="text-center">
-          <h1 className="text-[20px] font-bold text-gray-800 mb-3">Tower</h1>
-          <p className="text-[13px] text-gray-400">数据库未初始化</p>
-        </div>
-      </div>
-    )
+    </div>
+  )
+}
+
+function SeedButton({ onDone }: { onDone: () => void }) {
+  const [loading, setLoading] = useState(false)
+  const onClick = async () => {
+    setLoading(true)
+    await fetch('/api/seed', { method: 'POST' })
+    onDone()
+    window.location.reload()
   }
+  return (
+    <button onClick={onClick} disabled={loading}
+      className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-500 text-white text-[13px] rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors">
+      {loading ? '创建中...' : '初始化示例数据'}
+    </button>
+  )
 }
