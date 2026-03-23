@@ -13,5 +13,8 @@ RUN npx prisma generate
 COPY . .
 RUN npm run build
 
+# Add startup script
+RUN echo '#!/bin/sh\nnpx prisma db push\nexec npm run start' > /app/start.sh && chmod +x /app/start.sh
+
 EXPOSE 3000
-CMD npx prisma db push && npm run start
+CMD ["/app/start.sh"]
