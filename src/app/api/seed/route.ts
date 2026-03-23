@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import prisma from '@/lib/prisma'
 
 export async function POST() {
-  const prisma = new PrismaClient()
   const D = (s: string) => new Date(s)
 
   try {
@@ -64,7 +63,5 @@ export async function POST() {
     return NextResponse.json({ ok: true, message: '种子数据创建成功！' })
   } catch (e: unknown) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Unknown error' }, { status: 500 })
-  } finally {
-    await prisma.$disconnect()
   }
 }
