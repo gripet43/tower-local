@@ -14,7 +14,7 @@ COPY . .
 RUN npm run build
 
 # Add startup script
-RUN echo '#!/bin/sh\nnpx prisma db push\nexec npm run start' > /app/start.sh && chmod +x /app/start.sh
+RUN echo '#!/bin/sh\nnpx prisma db push --force-reset\nexec npm run start' > /app/start.sh && chmod +x /app/start.sh
 
 EXPOSE 3000
 CMD ["/app/start.sh"]
