@@ -1,22 +1,22 @@
 import { NextResponse } from 'next/server'
-import { execSync } from 'child_process'
 import prisma from '@/lib/prisma'
 
 export async function POST() {
   const D = (s: string) => new Date(s)
 
   try {
-    // Ensure database schema exists
-    try {
-      execSync('npx prisma db push --skip-generate', { 
-        env: { ...process.env, DATABASE_URL: process.env.VERCEL ? 'file:/tmp/tower.db' : 'file:./dev.db' },
-        timeout: 30000 
-      })
-    } catch {
-      // Schema push might fail if already exists, that's ok
-    }
+    // Try to create tables using raw SQL (avoids needing prisma CLI at runtime)
+    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "Project" ("id" TEXT NOT NULL PRIMARY KEY, "name" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL)`
+    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "Section" ("id" TEXT NOT NULL PRIMARY KEY, "projectId" TEXT NOT NULL, "name" TEXT NOT NULL, "sortOrder" INTEGER NOT NULL DEFAULT 0, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE)`
+    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "Tag" ("id" TEXT NOT NULL PRIMARY KEY, "projectId" TEXT NOT NULL, "name" TEXT NOT NULL, "color" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE)`
+    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "Task" ("id" TEXT NOT NULL PRIMARY KEY, "projectId" TEXT NOT NULL, "sectionId" TEXT, "title" TEXT NOT NULL, "taskNumber" INTEGER NOT NULL, "sortOrder" INTEGER NOT NULL DEFAULT 0, "completed" BOOLEAN NOT NULL DEFAULT false, "dueDate" DATETIME, "priority" TEXT NOT NULL DEFAULT 'normal', "description" TEXT NOT NULL DEFAULT '', "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE, FOREIGN KEY ("sectionId") REFERENCES "Section"("id") ON DELETE SET NULL)`
+    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "Subtask" ("id" TEXT NOT NULL PRIMARY KEY, "taskId" TEXT NOT NULL, "title" TEXT NOT NULL, "completed" BOOLEAN NOT NULL DEFAULT false, "sortOrder" INTEGER NOT NULL DEFAULT 0, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE)`
+    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "Comment" ("id" TEXT NOT NULL PRIMARY KEY, "taskId" TEXT NOT NULL, "content" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE)`
+    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "ActivityLog" ("id" TEXT NOT NULL PRIMARY KEY, "taskId" TEXT NOT NULL, "actionType" TEXT NOT NULL, "oldValue" TEXT, "newValue" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE)`
+    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "Attachment" ("id" TEXT NOT NULL PRIMARY KEY, "taskId" TEXT NOT NULL, "fileName" TEXT NOT NULL, "fileSize" INTEGER NOT NULL, "filePath" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE)`
+    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "TaskTag" ("id" TEXT NOT NULL PRIMARY KEY, "taskId" TEXT NOT NULL, "tagId" TEXT NOT NULL, FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE, FOREIGN KEY ("tagId") REFERENCES "Tag"("id") ON DELETE CASCADE)`
 
-    // Clean existing data (ignore errors if tables don't exist yet)
+    // Clean
     try {
       await prisma.taskTag.deleteMany()
       await prisma.activityLog.deleteMany()
@@ -27,7 +27,7 @@ export async function POST() {
       await prisma.tag.deleteMany()
       await prisma.section.deleteMany()
       await prisma.project.deleteMany()
-    } catch { /* tables might not exist yet */ }
+    } catch { /* ignore */ }
 
     // 投递
     const p1 = await prisma.project.create({ data: { name: '投递' } })
@@ -76,6 +76,6 @@ export async function POST() {
     return NextResponse.json({ ok: true, message: '种子数据创建成功！', projects: 3, tasks: 10 })
   } catch (e: unknown) {
     console.error('Seed error:', e)
-    return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Unknown error' }, { status: 500 })
+    return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Unknown error', stack: e instanceof Error ? e.stack : '' }, { status: 500 })
   }
 }
