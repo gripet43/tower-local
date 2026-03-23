@@ -1,0 +1,7 @@
+[build]
+builder = "nixpacks"
+buildCommand = "npx prisma generate && npm run build"
+
+[deploy]
+startCommand = "npm run start"
+healthcheckPath = "/api/debug"
