@@ -5,29 +5,27 @@ export async function POST() {
   const D = (s: string) => new Date(s)
 
   try {
-    // Try to create tables using raw SQL (avoids needing prisma CLI at runtime)
-    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "Project" ("id" TEXT NOT NULL PRIMARY KEY, "name" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`
-    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "Section" ("id" TEXT NOT NULL PRIMARY KEY, "projectId" TEXT NOT NULL, "name" TEXT NOT NULL, "sortOrder" INTEGER NOT NULL DEFAULT 0, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE)`
-    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "Tag" ("id" TEXT NOT NULL PRIMARY KEY, "projectId" TEXT NOT NULL, "name" TEXT NOT NULL, "color" TEXT NOT NULL DEFAULT '#6B7280', "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE, UNIQUE("projectId", "name"))`
-    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "Task" ("id" TEXT NOT NULL PRIMARY KEY, "projectId" TEXT NOT NULL, "sectionId" TEXT, "title" TEXT NOT NULL, "taskNumber" INTEGER NOT NULL, "sortOrder" INTEGER NOT NULL DEFAULT 0, "completed" BOOLEAN NOT NULL DEFAULT false, "dueDate" DATETIME, "priority" TEXT NOT NULL DEFAULT 'normal', "description" TEXT NOT NULL DEFAULT '', "completedAt" DATETIME, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE, FOREIGN KEY ("sectionId") REFERENCES "Section"("id") ON DELETE SET NULL)`
-    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "Subtask" ("id" TEXT NOT NULL PRIMARY KEY, "taskId" TEXT NOT NULL, "title" TEXT NOT NULL, "completed" BOOLEAN NOT NULL DEFAULT false, "sortOrder" INTEGER NOT NULL DEFAULT 0, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE)`
-    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "Comment" ("id" TEXT NOT NULL PRIMARY KEY, "taskId" TEXT NOT NULL, "content" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE)`
-    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "ActivityLog" ("id" TEXT NOT NULL PRIMARY KEY, "taskId" TEXT NOT NULL, "actionType" TEXT NOT NULL, "oldValue" TEXT, "newValue" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE)`
-    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "Attachment" ("id" TEXT NOT NULL PRIMARY KEY, "taskId" TEXT NOT NULL, "fileName" TEXT NOT NULL, "fileSize" INTEGER NOT NULL, "filePath" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE)`
-    await prisma.$executeRaw`CREATE TABLE IF NOT EXISTS "TaskTag" ("id" TEXT NOT NULL PRIMARY KEY, "taskId" TEXT NOT NULL, "tagId" TEXT NOT NULL, FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE, FOREIGN KEY ("tagId") REFERENCES "Tag"("id") ON DELETE CASCADE)`
+    // Drop and recreate all tables using raw SQL that matches the current schema
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "TaskTag"`)
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "ActivityLog"`)
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "Comment"`)
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "Subtask"`)
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "Attachment"`)
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "Task"`)
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "Tag"`)
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "Section"`)
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "Project"`)
 
-    // Clean
-    try {
-      await prisma.taskTag.deleteMany()
-      await prisma.activityLog.deleteMany()
-      await prisma.comment.deleteMany()
-      await prisma.subtask.deleteMany()
-      await prisma.attachment.deleteMany()
-      await prisma.task.deleteMany()
-      await prisma.tag.deleteMany()
-      await prisma.section.deleteMany()
-      await prisma.project.deleteMany()
-    } catch { /* ignore */ }
+    // Create tables matching current Prisma schema
+    await prisma.$executeRawUnsafe(`CREATE TABLE "Project" ("id" TEXT NOT NULL PRIMARY KEY, "name" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`)
+    await prisma.$executeRawUnsafe(`CREATE TABLE "Section" ("id" TEXT NOT NULL PRIMARY KEY, "projectId" TEXT NOT NULL, "name" TEXT NOT NULL, "sortOrder" INTEGER NOT NULL DEFAULT 0, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE)`)
+    await prisma.$executeRawUnsafe(`CREATE TABLE "Tag" ("id" TEXT NOT NULL PRIMARY KEY, "projectId" TEXT NOT NULL, "name" TEXT NOT NULL, "color" TEXT NOT NULL DEFAULT '#6B7280', "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE, UNIQUE("projectId", "name"))`)
+    await prisma.$executeRawUnsafe(`CREATE TABLE "Task" ("id" TEXT NOT NULL PRIMARY KEY, "projectId" TEXT NOT NULL, "sectionId" TEXT, "title" TEXT NOT NULL, "taskNumber" INTEGER NOT NULL, "sortOrder" INTEGER NOT NULL DEFAULT 0, "completed" BOOLEAN NOT NULL DEFAULT false, "dueDate" DATETIME, "priority" TEXT NOT NULL DEFAULT 'normal', "description" TEXT NOT NULL DEFAULT '', "completedAt" DATETIME, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE, FOREIGN KEY ("sectionId") REFERENCES "Section"("id") ON DELETE SET NULL)`)
+    await prisma.$executeRawUnsafe(`CREATE TABLE "Subtask" ("id" TEXT NOT NULL PRIMARY KEY, "taskId" TEXT NOT NULL, "title" TEXT NOT NULL, "completed" BOOLEAN NOT NULL DEFAULT false, "sortOrder" INTEGER NOT NULL DEFAULT 0, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE)`)
+    await prisma.$executeRawUnsafe(`CREATE TABLE "Comment" ("id" TEXT NOT NULL PRIMARY KEY, "taskId" TEXT NOT NULL, "content" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE)`)
+    await prisma.$executeRawUnsafe(`CREATE TABLE "ActivityLog" ("id" TEXT NOT NULL PRIMARY KEY, "taskId" TEXT NOT NULL, "actionType" TEXT NOT NULL, "oldValue" TEXT, "newValue" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE)`)
+    await prisma.$executeRawUnsafe(`CREATE TABLE "Attachment" ("id" TEXT NOT NULL PRIMARY KEY, "taskId" TEXT NOT NULL, "fileName" TEXT NOT NULL, "storageName" TEXT NOT NULL, "mimeType" TEXT NOT NULL, "fileSize" INTEGER NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE)`)
+    await prisma.$executeRawUnsafe(`CREATE TABLE "TaskTag" ("id" TEXT NOT NULL PRIMARY KEY, "taskId" TEXT NOT NULL, "tagId" TEXT NOT NULL, FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE CASCADE, FOREIGN KEY ("tagId") REFERENCES "Tag"("id") ON DELETE CASCADE, UNIQUE("taskId", "tagId"))`)
 
     // 投递
     const p1 = await prisma.project.create({ data: { name: '投递' } })
@@ -76,6 +74,6 @@ export async function POST() {
     return NextResponse.json({ ok: true, message: '种子数据创建成功！', projects: 3, tasks: 10 })
   } catch (e: unknown) {
     console.error('Seed error:', e)
-    return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Unknown error', stack: e instanceof Error ? e.stack : '' }, { status: 500 })
+    return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Unknown error' }, { status: 500 })
   }
 }
