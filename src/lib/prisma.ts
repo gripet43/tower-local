@@ -1,15 +1,15 @@
 import { PrismaClient } from '@prisma/client'
 
-function getPrismaUrl() {
-  if (process.env.VERCEL) return 'file:/tmp/tower.db'
-  return process.env.DATABASE_URL || 'file:./dev.db'
-}
+const dbUrl = process.env.VERCEL 
+  ? 'file:/tmp/tower.db' 
+  : (process.env.DATABASE_URL || 'file:./dev.db')
+
+// Force set before PrismaClient initializes
+process.env.DATABASE_URL = dbUrl
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 
-const prisma = globalForPrisma.prisma || new PrismaClient({
-  datasources: { db: { url: getPrismaUrl() } }
-})
+const prisma = globalForPrisma.prisma || new PrismaClient()
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 

@@ -1,20 +1,33 @@
 import { NextResponse } from 'next/server'
+import { execSync } from 'child_process'
 import prisma from '@/lib/prisma'
 
 export async function POST() {
   const D = (s: string) => new Date(s)
 
   try {
-    // Clean
-    await prisma.taskTag.deleteMany()
-    await prisma.activityLog.deleteMany()
-    await prisma.comment.deleteMany()
-    await prisma.subtask.deleteMany()
-    await prisma.attachment.deleteMany()
-    await prisma.task.deleteMany()
-    await prisma.tag.deleteMany()
-    await prisma.section.deleteMany()
-    await prisma.project.deleteMany()
+    // Ensure database schema exists
+    try {
+      execSync('npx prisma db push --skip-generate', { 
+        env: { ...process.env, DATABASE_URL: process.env.VERCEL ? 'file:/tmp/tower.db' : 'file:./dev.db' },
+        timeout: 30000 
+      })
+    } catch {
+      // Schema push might fail if already exists, that's ok
+    }
+
+    // Clean existing data (ignore errors if tables don't exist yet)
+    try {
+      await prisma.taskTag.deleteMany()
+      await prisma.activityLog.deleteMany()
+      await prisma.comment.deleteMany()
+      await prisma.subtask.deleteMany()
+      await prisma.attachment.deleteMany()
+      await prisma.task.deleteMany()
+      await prisma.tag.deleteMany()
+      await prisma.section.deleteMany()
+      await prisma.project.deleteMany()
+    } catch { /* tables might not exist yet */ }
 
     // 投递
     const p1 = await prisma.project.create({ data: { name: '投递' } })
@@ -60,8 +73,9 @@ export async function POST() {
     await prisma.task.create({ data: { projectId: p3.id, title: '记录今天的灵感', taskNumber: 1, sortOrder: 0, priority: 'low', description: '用英文写一个简单的日记应用试试，主要练习口语和写作。' } })
     await prisma.task.create({ data: { projectId: p3.id, title: '研究 Svelte', taskNumber: 2, sortOrder: 1, description: '看看 Svelte 5 的 runes 模式，对比 React hooks。' } })
 
-    return NextResponse.json({ ok: true, message: '种子数据创建成功！' })
+    return NextResponse.json({ ok: true, message: '种子数据创建成功！', projects: 3, tasks: 10 })
   } catch (e: unknown) {
+    console.error('Seed error:', e)
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Unknown error' }, { status: 500 })
   }
 }
